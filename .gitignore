@@ -19,3 +19,15 @@
 
 # Go workspace file
 go.work
+
+.ssh/
+
+.env
+.envrc
+
+_deployments/bin/
+_deployments/zip/
+
+test-results/
+
+*.pem
