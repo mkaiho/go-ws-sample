@@ -5,9 +5,13 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/mkaiho/go-ws-sample/adapter/dummy"
+	idAdapter "github.com/mkaiho/go-ws-sample/adapter/id"
 	"github.com/mkaiho/go-ws-sample/controller/web"
 	"github.com/mkaiho/go-ws-sample/controller/web/handlers"
 	"github.com/mkaiho/go-ws-sample/controller/web/routes"
+	"github.com/mkaiho/go-ws-sample/usecase/interactor"
+	"github.com/mkaiho/go-ws-sample/usecase/port"
 	"github.com/mkaiho/go-ws-sample/util"
 	"github.com/spf13/cobra"
 )
@@ -97,12 +101,43 @@ func handle(cmd *cobra.Command, args []string) (err error) {
 }
 
 func server() (*web.Server, error) {
+	// ports
+	var (
+		ulidGenerator port.IDGenerator
+		roomsManager  port.RoomsManager
+	)
+	{
+		ulidGenerator = idAdapter.NewULIDGenerator()
+		roomsManager = dummy.NewRoomsAccess(ulidGenerator)
+	}
+
+	// interactors
+	var (
+		listRoomsInteractor  interactor.ListRoomsInteractor
+		getRoomInteractor    interactor.GetRoomInteractor
+		createRoomInteractor interactor.CreateRoomInteractor
+		deleteRoomInteractor interactor.DeleteRoomInteractor
+	)
+	{
+		listRoomsInteractor = interactor.NewListRoomsInteractor(roomsManager)
+		getRoomInteractor = interactor.NewGetRoomInteractor(roomsManager)
+		createRoomInteractor = interactor.NewCreateRoomInteractor(roomsManager)
+		deleteRoomInteractor = interactor.NewDeleteRoomInteractor(roomsManager)
+	}
+
 	// routes
 	var r routes.Routes
 	health := routes.NewHealthRoutes(
 		handlers.NewHealthGetHandler(),
 	)
 	r = append(r, health...)
+	rooms := routes.NewRoomsRoutes(
+		handlers.NewListRoomsHandler(listRoomsInteractor),
+		handlers.NewGetRoomHandler(getRoomInteractor),
+		handlers.NewCreateRoomHandler(createRoomInteractor),
+		handlers.NewDeleteRoomHandler(deleteRoomInteractor),
+	)
+	r = append(r, rooms...)
 
 	return web.NewGinServer(r...), nil
 }
